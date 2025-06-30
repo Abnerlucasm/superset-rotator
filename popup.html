@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Superset Dashboard Rotator</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      width: 600px;
+      margin: 0;
+      padding: 0;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    
+    .header {
+      background-color: #336699;
+      color: white;
+      padding: 15px;
+      text-align: center;
+      border-bottom: 3px solid #1a4c80;
+      position: relative;
+    }
+    
+    h1 {
+      font-size: 18px;
+      margin: 0;
+      font-weight: 500;
+    }
+    
+    .subtitle {
+      font-size: 12px;
+      opacity: 0.9;
+      margin-top: 4px;
+    }
+    
+    .version-info {
+      font-size: 11px;
+      opacity: 0.8;
+      margin-top: 2px;
+      font-weight: 500;
+    }
+    
+    .content {
+      padding: 20px;
+    }
+    
+    .section {
+      margin-bottom: 20px;
+      padding: 18px;
+      background-color: white;
+      border-radius: 8px;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.1);
+    }
+    
+    .section-title {
+      display: flex;
+      align-items: center;
+      font-size: 15px;
+      font-weight: 600;
+      color: #336699;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #eee;
+    }
+    
+    .section-title i {
+      margin-right: 10px;
+      font-size: 16px;
+    }
+    
+    label {
+      display: block;
+      margin-bottom: 6px;
+      font-weight: 500;
+      font-size: 14px;
+      color: #495057;
+    }
+    
+    .required::after {
+      content: " *";
+      color: #dc3545;
+      font-weight: bold;
+    }
+    
+    input {
+      width: 100%;
+      padding: 10px 12px;
+      box-sizing: border-box;
+      margin-bottom: 15px;
+      border: 1px solid #ced4da;
+      border-radius: 6px;
+      font-size: 14px;
+    }
+    
+    input:focus {
+      outline: none;
+      border-color: #80bdff;
+      box-shadow: 0 0 0 2px rgba(0,123,255,.25);
+    }
+    
+    button {
+      background-color: #4CAF50;
+      color: white;
+      border: none;
+      padding: 10px 15px;
+      cursor: pointer;
+      border-radius: 6px;
+      font-size: 14px;
+      font-weight: 500;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: background-color 0.2s;
+      min-height: 40px;
+    }
+    
+    button:hover {
+      background-color: #3e9142;
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+    }
+    
+    button:active {
+      transform: translateY(0);
+    }
+    
+    button i {
+      margin-right: 8px;
+      font-size: 14px;
+    }
+    
+    .button-group {
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    
+    .button-group button {
+      flex: 1;
+    }
+    
+    .btn-start {
+      background-color: #28a745;
+    }
+    
+    .btn-start:hover {
+      background-color: #218838;
+    }
+    
+    .btn-stop {
+      background-color: #dc3545;
+    }
+    
+    .btn-stop:hover {
+      background-color: #c82333;
+    }
+    
+    .btn-nav {
+      background-color: #6c757d;
+    }
+    
+    .btn-nav:hover {
+      background-color: #5a6268;
+    }
+    
+    .btn-login {
+      background-color: #007bff;
+    }
+    
+    .btn-login:hover {
+      background-color: #0069d9;
+    }
+    
+    .btn-add {
+      background-color: #17a2b8;
+    }
+    
+    .btn-add:hover {
+      background-color: #138496;
+    }
+    
+    .btn-save {
+      background-color: #6f42c1;
+      width: 100%;
+      margin-top: 5px;
+    }
+    
+    .btn-save:hover {
+      background-color: #5e35b1;
+    }
+    
+    .btn-export {
+      background-color: #007bff;
+    }
+    
+    .btn-export:hover {
+      background-color: #0069d9;
+    }
+    
+    .btn-import {
+      background-color: #6c757d;
+    }
+    
+    .btn-import:hover {
+      background-color: #5a6268;
+    }
+    
+    #dashboard-list {
+      max-height: 200px;
+      overflow-y: auto;
+      border: 1px solid #e9ecef;
+      border-radius: 6px;
+      padding: 8px;
+      margin-bottom: 15px;
+      background-color: #f8f9fa;
+    }
+    
+    .dashboard-item {
+      padding: 10px 12px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 14px;
+      background-color: white;
+      margin-bottom: 4px;
+      border-radius: 4px;
+    }
+    
+    .dashboard-item:last-child {
+      border-bottom: none;
+      margin-bottom: 0;
+    }
+    
+    .dashboard-info {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+      margin-right: 10px;
+    }
+    
+    .dashboard-item button {
+      background-color: #dc3545;
+      padding: 6px 12px;
+      font-size: 12px;
+      margin-left: 8px;
+      opacity: 0.9;
+      min-height: auto;
+    }
+    
+    .dashboard-item button:hover {
+      opacity: 1;
+      background-color: #c82333;
+    }
+    
+    .status {
+      margin-top: 10px;
+      padding: 8px;
+      border-radius: 4px;
+      background-color: #f8f9fa;
+      font-size: 13px;
+      text-align: center;
+      border: 1px solid #e9ecef;
+    }
+    
+    .active {
+      background-color: #d4edda;
+      color: #155724;
+      border-color: #c3e6cb;
+    }
+    
+    #countdown {
+      font-weight: bold;
+      color: #dc3545;
+      font-size: 14px;
+      margin-top: 5px;
+      text-align: center;
+    }
+    
+    .checkbox-container {
+      display: flex;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+    
+    .checkbox-container input[type="checkbox"] {
+      width: auto;
+      margin-right: 8px;
+      margin-bottom: 0;
+    }
+    
+    .checkbox-container label {
+      display: inline;
+      font-weight: normal;
+    }
+    
+    .dashboard-info-box {
+      margin-top: 10px;
+      padding: 10px;
+      background-color: #f8f9fa;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    
+    .dashboard-info-title {
+      font-weight: bold;
+      font-size: 12px;
+      color: #495057;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+    }
+    
+    .dashboard-info-title i {
+      margin-right: 5px;
+    }
+    
+    .dashboard-info-value {
+      font-size: 13px;
+      color: #333;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      padding-left: 20px;
+    }
+    
+    .help-button {
+      background-color: #17a2b8;
+      border-radius: 50%;
+      width: 28px;
+      height: 28px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-weight: bold;
+      font-size: 14px;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+    
+    .help-button:hover {
+      background-color: #138496;
+    }
+    
+    #help-guide {
+      display: none;
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0, 0, 0, 0.7);
+      z-index: 1000;
+      padding: 20px;
+      box-sizing: border-box;
+      overflow-y: auto;
+    }
+    
+    .guide-content {
+      background-color: white;
+      padding: 20px;
+      border-radius: 8px;
+      max-width: 500px;
+      margin: 0 auto;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
+    }
+    
+    .guide-content h2 {
+      color: #336699;
+      font-size: 18px;
+      margin-top: 0;
+      border-bottom: 1px solid #eee;
+      padding-bottom: 10px;
+    }
+    
+    .guide-content h3 {
+      font-size: 15px;
+      margin-top: 15px;
+      margin-bottom: 8px;
+      color: #495057;
+    }
+    
+    .guide-content p {
+      font-size: 13px;
+      line-height: 1.5;
+      margin: 8px 0;
+    }
+    
+    .guide-content .step {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: flex-start;
+    }
+    
+    .step-number {
+      background-color: #336699;
+      color: white;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      margin-right: 10px;
+      flex-shrink: 0;
+    }
+    
+    .step-text {
+      flex: 1;
+    }
+    
+    .feature-item {
+      display: flex;
+      align-items: flex-start;
+      margin-bottom: 8px;
+    }
+    
+    .feature-icon {
+      color: #28a745;
+      margin-right: 8px;
+      font-size: 14px;
+    }
+    
+    .close-guide {
+      float: right;
+      font-size: 22px;
+      background: none;
+      border: none;
+      color: #333;
+      cursor: pointer;
+      padding: 0;
+      margin: 0;
+    }
+    
+    .note {
+      font-size: 12px;
+      color: #6c757d;
+      margin-top: 10px;
+      font-style: italic;
+      background-color: #f8f9fa;
+      padding: 8px;
+      border-radius: 4px;
+    }
+    
+    .required-note {
+      font-size: 12px;
+      color: #dc3545;
+      font-style: italic;
+      margin-bottom: 10px;
+    }
+    
+    .form-row {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 8px;
+    }
+    
+    .form-row .form-group {
+      flex: 1;
+    }
+    
+    .form-group label {
+      margin-bottom: 4px;
+    }
+    
+    .form-group input {
+      margin-bottom: 0;
+    }
+    
+    .api-dashboard-item {
+      padding: 10px;
+      border-bottom: 1px solid #eee;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 13px;
+    }
+    
+    .api-dashboard-item:hover {
+      background-color: #f8f9fa;
+    }
+    
+    .api-dashboard-item:last-child {
+      border-bottom: none;
+    }
+    
+    .btn-fetch {
+      background-color: #17a2b8;
+      width: 100%;
+    }
+    
+    .btn-fetch:hover {
+      background-color: #138496;
+    }
+    
+    @keyframes pulse {
+      0% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+      100% { transform: scale(1); }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>Superset Dashboard Rotator</h1>
+    <div class="subtitle">Automatize a visualização de dashboards</div>
+    <div class="version-info">v<span id="extension-version">1.0</span></div>
+    <button id="help-button" class="help-button" title="Guia de Uso"><i class="fas fa-question"></i></button>
+  </div>
+  
+  <div class="content">
+    <div class="section">
+      <div class="section-title">
+        <i class="fas fa-play-circle"></i> Controles de Rotação
+      </div>
+      
+      <label for="interval" class="required">Intervalo (segundos):</label>
+      <input type="number" id="interval" min="5" value="30">
+      
+      <div class="button-group">
+        <button id="start" class="btn-start"><i class="fas fa-play"></i> Iniciar</button>
+        <button id="stop" class="btn-stop"><i class="fas fa-stop"></i> Parar</button>
+        <button id="prev" class="btn-nav"><i class="fas fa-step-backward"></i></button>
+        <button id="next" class="btn-nav"><i class="fas fa-step-forward"></i></button>
+      </div>
+      
+      <div id="status-rotation" class="status">
+        <i class="fas fa-info-circle"></i> Rotação: Parada
+      </div>
+      
+      <div id="countdown"></div>
+      
+      <div class="dashboard-info-box">
+        <div class="dashboard-info-title">
+          <i class="fas fa-tv"></i> Dashboard Atual:
+        </div>
+        <div id="current-dashboard" class="dashboard-info-value">Nenhum</div>
+        
+        <div class="dashboard-info-title" style="margin-top: 8px;">
+          <i class="fas fa-forward"></i> Próximo Dashboard:
+        </div>
+        <div id="next-dashboard" class="dashboard-info-value">Nenhum</div>
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">
+        <i class="fas fa-user-lock"></i> Autenticação
+      </div>
+      
+      <label for="server-url" class="required">URL do Servidor Superset:</label>
+      <input type="text" id="server-url" placeholder="ex: http://192.168.1.100:8080">
+      
+      <div class="form-row">
+        <div class="form-group">
+          <label for="username" class="required">Usuário:</label>
+          <input type="text" id="username">
+        </div>
+        
+        <div class="form-group">
+          <label for="password" class="required">Senha:</label>
+          <input type="password" id="password">
+        </div>
+      </div>
+      
+      <div class="checkbox-container">
+        <input type="checkbox" id="save-credentials">
+        <label for="save-credentials">Salvar credenciais automaticamente</label>
+      </div>
+      
+      <button id="login" class="btn-login"><i class="fas fa-sign-in-alt"></i> Fazer Login</button>
+      
+      <div id="status-login" class="status">
+        <i class="fas fa-info-circle"></i> Login: Não verificado
+      </div>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">
+        <i class="fas fa-chart-bar"></i> Gerenciar Dashboards
+      </div>
+      
+      <div class="button-group" style="margin-bottom: 15px;">
+        <button id="fetch-dashboards" class="btn-fetch">
+          <i class="fas fa-sync"></i> Buscar Dashboards da API
+        </button>
+      </div>
+      
+      <div id="api-search-container" style="display: none; margin-bottom: 10px;">
+        <label for="api-search">Pesquisar dashboards:</label>
+        <input type="text" id="api-search" placeholder="Digite para filtrar dashboards..." style="margin-bottom: 10px;">
+      </div>
+      
+      <div id="api-dashboards-list" style="display: none; max-height: 200px; overflow-y: auto; margin-bottom: 15px;">
+        <!-- Lista de dashboards da API será gerada aqui -->
+      </div>
+      
+      <div id="add-all-container" style="display: none; margin-bottom: 15px;">
+        <button id="add-all-dashboards" class="btn-add" style="width: 100%;">
+          <i class="fas fa-plus-circle"></i> Adicionar Todos os Dashboards da API
+        </button>
+      </div>
+      
+      <div class="required-note"><i class="fas fa-asterisk"></i> Campos obrigatórios</div>
+      
+      <label>Dashboards Configurados:</label>
+      <div id="dashboard-list">
+        <!-- Lista de dashboards será gerada dinamicamente -->
+      </div>
+      
+      <label for="dashboard-name" class="required">Nome:</label>
+      <input type="text" id="dashboard-name" placeholder="Ex: Vendas Mensais">
+      
+      <label for="dashboard-url" class="required">URL:</label>
+      <input type="text" id="dashboard-url" placeholder="http://[IP_SERVIDOR]/superset/dashboard/...">
+      
+      <label for="dashboard-desc">Descrição:</label>
+      <input type="text" id="dashboard-desc" placeholder="Opcional: descrição do dashboard">
+      
+      <button id="add-dashboard" class="btn-add"><i class="fas fa-plus"></i> Adicionar Dashboard</button>
+      
+      <button id="save-config" class="btn-save"><i class="fas fa-save"></i> Salvar Configuração</button>
+    </div>
+    
+    <div class="section">
+      <div class="section-title">
+        <i class="fas fa-file-export"></i> Importar/Exportar
+      </div>
+      
+      <div class="button-group">
+        <button id="export-config" class="btn-export"><i class="fas fa-download"></i> Exportar Configurações</button>
+        <button id="import-config" class="btn-import"><i class="fas fa-upload"></i> Importar Configurações</button>
+      </div>
+      <input type="file" id="import-file" accept=".json" style="display: none;">
+    </div>
+  </div>
+  
+  <!-- Modal do Guia de Ajuda -->
+  <div id="help-guide">
+    <div class="guide-content">
+      <button class="close-guide">&times;</button>
+      <h2><i class="fas fa-info-circle"></i> Guia de Uso - Dashboard Rotator</h2>
+      
+      <p>Esta extensão permite rotacionar automaticamente entre dashboards do Superset com tempo configurável.</p>
+      
+      <h3><i class="fas fa-cog"></i> Configuração inicial</h3>
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-text">Preencha seu <strong>usuário</strong> e <strong>senha</strong> do Superset</div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-text">Marque a opção "Salvar credenciais" para não precisar digitar novamente</div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-text">Adicione pelo menos um dashboard (nome e URL são obrigatórios)</div>
+      </div>
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-text">Configure o intervalo de rotação em segundos</div>
+      </div>
+      <div class="step">
+        <div class="step-number">5</div>
+        <div class="step-text">Clique em "Salvar Configuração"</div>
+      </div>
+      
+      <h3><i class="fas fa-play"></i> Como usar</h3>
+      <div class="step">
+        <div class="step-number">1</div>
+        <div class="step-text">Clique em "Iniciar" para começar a rotação de dashboards</div>
+      </div>
+      <div class="step">
+        <div class="step-number">2</div>
+        <div class="step-text">Um contador mostrará quanto tempo falta para trocar de dashboard</div>
+      </div>
+      <div class="step">
+        <div class="step-number">3</div>
+        <div class="step-text">Você pode navegar manualmente usando os botões de "Anterior" e "Próximo"</div>
+      </div>
+      <div class="step">
+        <div class="step-number">4</div>
+        <div class="step-text">Para parar a rotação, clique no botão "Parar"</div>
+      </div>
+      
+      <h3><i class="fas fa-star"></i> Funcionalidades</h3>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="fas fa-check"></i></div>
+        <div><strong>Login automático:</strong> A extensão faz login automaticamente usando suas credenciais</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="fas fa-check"></i></div>
+        <div><strong>Contador:</strong> Exibe o tempo restante para mudar de dashboard</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="fas fa-check"></i></div>
+        <div><strong>Navegação:</strong> Permite navegar entre dashboards</div>
+      </div>
+      <div class="feature-item">
+        <div class="feature-icon"><i class="fas fa-check"></i></div>
+        <div><strong>Exportar/Importar:</strong> Salve e carregue suas configurações em arquivos JSON</div>
+      </div>
+      
+      <div class="note">
+        <i class="fas fa-info-circle"></i> Nota: Certifique-se de que o Superset esteja acessível antes de iniciar a rotação.
+      </div>
+    </div>
+  </div>
+  
+  <script src="popup.js"></script>
+</body>
+</html> 

@@ -76,7 +76,7 @@ document.addEventListener('keydown', (event) => {
 async function verificarAtualizacoes() {
   try {
     // URL do arquivo de versão no GitHub (exemplo)
-    const urlVersao = 'https://raw.githubusercontent.com/abnerlucasm/superset-rotator/main/version.json';
+    const urlVersao = 'https://raw.githubusercontent.com/abnerlucasm/superset-rotator/master/version.json';
     
     const resposta = await fetch(urlVersao, {
       method: 'GET',

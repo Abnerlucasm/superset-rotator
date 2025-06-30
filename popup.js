@@ -4,12 +4,53 @@ let configuracao = {
   senha: "",
   server_url: "",
   intervalo_segundos: 30,
-  dashboards: []
+  dashboards: [],
+  auto_login: false,
+  fullscreen: false
 };
+
+// Dados adicionais para salvar no Extension Storage
+let dadosExtensao = {
+  configuracao: configuracao,
+  preferencias: {
+    tema: 'claro',
+    idioma: 'pt-BR',
+    notificacoes: true,
+    auto_salvar: true,
+    debounce_tempo: 1000
+  },
+  estado: {
+    em_rotacao: false,
+    indice_atual: 0,
+    tempo_restante: 30,
+    ultima_atualizacao: Date.now(),
+    sessao_valida: false
+  },
+  historico: {
+    logins: [],
+    dashboards_acessados: [],
+    erros: [],
+    ultima_limpeza: Date.now()
+  }
+};
+
 let emRotacao = false;
 let contadorTempo = 0;
 let idContadorInterval = null;
 let indiceAtual = 0;
+let salvamentoAutomatico = true; // Flag para controlar salvamento automático
+
+// Função para salvar com debounce (escopo global)
+let timeoutSalvamento = null;
+function salvarComDebounce() {
+  if (timeoutSalvamento) {
+    clearTimeout(timeoutSalvamento);
+  }
+  timeoutSalvamento = setTimeout(async () => {
+    await salvarDadosExtensao();
+    timeoutSalvamento = null;
+  }, preferencias && preferencias.debounce_tempo ? preferencias.debounce_tempo : 1000);
+}
 
 // Elementos DOM
 const inputIntervalo = document.getElementById('interval');
@@ -32,7 +73,7 @@ const apiDashboardsList = document.getElementById('api-dashboards-list');
 const apiSearchContainer = document.getElementById('api-search-container');
 const inputApiSearch = document.getElementById('api-search');
 const addAllContainer = document.getElementById('add-all-container');
-const addAllButton = document.getElementById('add-all-dashboards');
+const botaoAddAllDashboards = document.getElementById('add-all-dashboards');
 const extensionVersion = document.getElementById('extension-version');
 
 // Variáveis para dashboards da API
@@ -47,7 +88,10 @@ const botaoProximo = document.getElementById('next');
 const botaoLogin = document.getElementById('login');
 const botaoAddDashboard = document.getElementById('add-dashboard');
 const botaoSalvar = document.getElementById('save-config');
-const checkboxSalvarCredenciais = document.getElementById('save-credentials');
+const botaoExport = document.getElementById('export-config');
+const botaoImport = document.getElementById('import-config');
+const inputImport = document.getElementById('import-file');
+const botaoFetchDashboards = document.getElementById('fetch-dashboards');
 
 // Mostrar/esconder o guia de ajuda
 helpButton.addEventListener('click', () => {
@@ -166,13 +210,34 @@ async function verificarAtualizacoes() {
   }
 }
 
+// Preencher campos da interface com dados carregados
+function preencherCamposInterface() {
+  inputUsuario.value = configuracao.usuario || '';
+  inputSenha.value = configuracao.senha || '';
+  inputIntervalo.value = configuracao.intervalo_segundos || 30;
+  inputServerURL.value = configuracao.server_url || '';
+  
+  // Aplicar preferências de tema se configuradas
+  if (dadosExtensao.preferencias.tema === 'dark') {
+    document.body.classList.add('dark-theme');
+  }
+  
+  console.log('Campos da interface preenchidos com dados carregados');
+}
+
 // Inicializar os elementos quando o documento estiver pronto
 document.addEventListener('DOMContentLoaded', () => {
   // Exibir versão da extensão
   extensionVersion.textContent = chrome.runtime.getManifest().version;
   
-  carregarConfiguracao();
-  atualizarListaDashboards();
+  carregarConfiguracao().then(() => {
+    // Preencher campos da interface
+    preencherCamposInterface();
+    
+    atualizarListaDashboards();
+    
+    // Configurar salvamento automático
+    configurarSalvamentoAutomatico();
   
   // Verificar status de rotação atual
   verificarStatusRotacao();
@@ -184,24 +249,37 @@ document.addEventListener('DOMContentLoaded', () => {
   verificarAtualizacoes();
   
   // Obter o índice atual e atualizar a exibição dos dashboards
-  chrome.runtime.sendMessage({ acao: 'getIndiceAtual' }, (resposta) => {
-    if (resposta && resposta.indiceAtual !== undefined) {
-      indiceAtual = resposta.indiceAtual;
-      atualizarExibicaoDashboards();
-    }
-  });
+    sincronizarIndiceAtual();
   
   // Iniciar contador regressivo se a rotação estiver ativa
   chrome.runtime.sendMessage({ acao: 'getTempoRestante' }, (resposta) => {
     if (resposta && resposta.tempoRestante) {
       iniciarContadorRegressivo(resposta.tempoRestante);
     }
+    });
   });
 });
 
+// Função para sincronizar o índice atual com o background script
+function sincronizarIndiceAtual() {
+  chrome.runtime.sendMessage({ acao: 'getIndiceAtual' }, (resposta) => {
+    if (resposta && resposta.indiceAtual !== undefined) {
+      indiceAtual = resposta.indiceAtual;
+      atualizarExibicaoDashboards();
+    } else {
+      // Se não conseguiu obter o índice, tentar novamente após um breve atraso
+      setTimeout(() => {
+        sincronizarIndiceAtual();
+      }, 500);
+    }
+  });
+}
+
 // Iniciar rotação
 botaoIniciar.addEventListener('click', () => {
-  if (configuracao.dashboards.length === 0) {
+  // Verificar se há dashboards configurados
+  const dashboardsAtuais = configuracao.dashboards || [];
+  if (dashboardsAtuais.length === 0) {
     alert('Nenhum dashboard configurado. Adicione pelo menos um dashboard.');
     return;
   }
@@ -211,8 +289,33 @@ botaoIniciar.addEventListener('click', () => {
     return;
   }
   
+  // Verificar se tem credenciais preenchidas
+  if (!verificarCredenciaisPreenchidas()) {
+    alert('Preencha o usuário, senha e URL do servidor para iniciar a rotação');
+    return;
+  }
+  
   try {
-    chrome.runtime.sendMessage({ acao: 'iniciarRotacao' }, (resposta) => {
+    // Usar configuração atual dos campos
+    const configAtual = obterConfiguracaoAtual();
+    
+    // Verificar novamente se há dashboards na configuração atual
+    if (!configAtual.dashboards || configAtual.dashboards.length === 0) {
+      alert('Nenhum dashboard configurado. Adicione pelo menos um dashboard antes de iniciar a rotação.');
+      return;
+    }
+    
+    console.log('Iniciando rotação com configuração:', {
+      usuario: configAtual.usuario,
+      server_url: configAtual.server_url,
+      dashboards_count: configAtual.dashboards.length,
+      intervalo: configAtual.intervalo_segundos
+    });
+    
+    chrome.runtime.sendMessage({ 
+      acao: 'iniciarRotacao',
+      configuracao: configAtual
+    }, (resposta) => {
       if (chrome.runtime.lastError) {
         console.warn('Erro ao iniciar rotação:', chrome.runtime.lastError.message);
         alert('Erro ao iniciar rotação. Tente novamente.');
@@ -221,7 +324,7 @@ botaoIniciar.addEventListener('click', () => {
       
       if (resposta && resposta.sucesso) {
         emRotacao = true;
-        iniciarContadorRegressivo(configuracao.intervalo_segundos);
+        iniciarContadorRegressivo(configAtual.intervalo_segundos);
         atualizarStatus();
         
         // Obter o índice atual
@@ -236,6 +339,8 @@ botaoIniciar.addEventListener('click', () => {
             atualizarExibicaoDashboards();
           }
         });
+      } else {
+        alert(resposta?.mensagem || 'Erro ao iniciar rotação');
       }
     });
   } catch (erro) {
@@ -279,14 +384,23 @@ botaoAnterior.addEventListener('click', () => {
       if (resposta && resposta.indiceAtual !== undefined) {
         indiceAtual = resposta.indiceAtual;
         atualizarExibicaoDashboards();
+        
+        // Sincronizar contador com o background
+        chrome.runtime.sendMessage({ 
+          acao: 'setTempoRestante', 
+          tempoRestante: configuracao.intervalo_segundos 
+        }, (resposta) => {
+          if (resposta && resposta.sucesso) {
+            // Reiniciar contador local com o tempo sincronizado
+            iniciarContadorRegressivo(configuracao.intervalo_segundos);
+          }
+        });
       }
     });
   } catch (erro) {
     console.error('Erro ao navegar para dashboard anterior:', erro);
     alert('Erro ao navegar. Tente novamente.');
   }
-  // Reiniciar contador
-  iniciarContadorRegressivo(configuracao.intervalo_segundos);
 });
 
 // Navegar para o próximo dashboard
@@ -302,14 +416,23 @@ botaoProximo.addEventListener('click', () => {
       if (resposta && resposta.indiceAtual !== undefined) {
         indiceAtual = resposta.indiceAtual;
         atualizarExibicaoDashboards();
+        
+        // Sincronizar contador com o background
+        chrome.runtime.sendMessage({ 
+          acao: 'setTempoRestante', 
+          tempoRestante: configuracao.intervalo_segundos 
+        }, (resposta) => {
+          if (resposta && resposta.sucesso) {
+            // Reiniciar contador local com o tempo sincronizado
+            iniciarContadorRegressivo(configuracao.intervalo_segundos);
+          }
+        });
       }
     });
   } catch (erro) {
     console.error('Erro ao navegar para próximo dashboard:', erro);
     alert('Erro ao navegar. Tente novamente.');
   }
-  // Reiniciar contador
-  iniciarContadorRegressivo(configuracao.intervalo_segundos);
 });
 
 // Fazer login
@@ -332,7 +455,14 @@ botaoLogin.addEventListener('click', () => {
   // Salvar e fazer login
   salvarConfiguracao(() => {
     try {
-      chrome.runtime.sendMessage({ acao: 'fazerLogin' }, (resposta) => {
+      chrome.runtime.sendMessage({ 
+        acao: 'fazerLogin',
+        configuracao: {
+          usuario: inputUsuario.value.trim(),
+          senha: inputSenha.value.trim(),
+          server_url: inputServerURL.value.trim()
+        }
+      }, (resposta) => {
         if (chrome.runtime.lastError) {
           console.warn('Erro ao fazer login:', chrome.runtime.lastError.message);
           alert('Erro ao fazer login. Tente novamente.');
@@ -355,23 +485,42 @@ botaoLogin.addEventListener('click', () => {
 
 // Verificar status de login
 function verificarStatusLogin() {
-  // Tentar abrir uma página do Superset para verificar se está logado
-  chrome.tabs.query({}, (tabs) => {
-    let encontrouSuperset = false;
-    
-    for (const tab of tabs) {
-      if (tab.url && tab.url.includes(configuracao.server_url) && !tab.url.includes('/login/')) {
-        encontrouSuperset = true;
-        break;
-      }
+  // Usar valores dos campos em tempo real se disponíveis
+  const usuario = inputUsuario.value.trim() || configuracao.usuario;
+  const senha = inputSenha.value.trim() || configuracao.senha;
+  const serverUrl = inputServerURL.value.trim() || configuracao.server_url;
+  
+  if (!usuario || !senha || !serverUrl) {
+    statusLogin.textContent = 'Credenciais não configuradas';
+    statusLogin.style.color = '#dc3545';
+    return;
+  }
+  
+  statusLogin.textContent = 'Verificando...';
+  statusLogin.style.color = '#ffc107';
+  
+  // Verificar se há sessão válida sem redirecionar
+  chrome.runtime.sendMessage({ 
+    acao: 'verificarSessaoSemRedirecionar',
+    configuracao: {
+      usuario: usuario,
+      senha: senha,
+      server_url: serverUrl
+    }
+  }, (resposta) => {
+    if (chrome.runtime.lastError) {
+      console.error('Erro ao verificar sessão:', chrome.runtime.lastError.message);
+      statusLogin.textContent = 'Erro na verificação';
+      statusLogin.style.color = '#dc3545';
+      return;
     }
     
-    if (encontrouSuperset) {
-      statusLogin.textContent = 'Login: Conectado';
-      statusLogin.classList.add('active');
+    if (resposta && resposta.sessaoValida) {
+      statusLogin.textContent = 'Sessão válida';
+      statusLogin.style.color = '#28a745';
     } else {
-      statusLogin.textContent = 'Login: Não verificado';
-      statusLogin.classList.remove('active');
+      statusLogin.textContent = 'Sessão inválida';
+      statusLogin.style.color = '#dc3545';
     }
   });
 }
@@ -425,9 +574,19 @@ botaoAddDashboard.addEventListener('click', () => {
   
   // Atualizar exibição de dashboards atual/próximo
   atualizarExibicaoDashboards();
+  
+  // Salvar configuração automaticamente
+  salvarConfiguracaoComDashboards();
 });
 
 // Salvar configuração
+function salvarConfiguracao(callback) {
+  salvarDadosExtensao().then(sucesso => {
+    if (callback) callback(sucesso);
+  });
+}
+
+// Event listener do botão salvar
 botaoSalvar.addEventListener('click', () => {
   // Verificar campos obrigatórios
   if (!inputIntervalo.value) {
@@ -446,8 +605,12 @@ botaoSalvar.addEventListener('click', () => {
   configuracao.server_url = inputServerURL.value;
   configuracao.intervalo_segundos = parseInt(inputIntervalo.value) || 30;
   
-  salvarConfiguracao(() => {
+  salvarConfiguracao((sucesso) => {
+    if (sucesso) {
     alert('Configuração salva com sucesso!');
+    } else {
+      alert('Erro ao salvar configuração. Tente novamente.');
+    }
   });
 });
 
@@ -486,8 +649,8 @@ function validarFormatoURL(url) {
 }
 
 // Auto-salvar credenciais quando digitar
-inputUsuario.addEventListener('change', salvarCredenciais);
-inputSenha.addEventListener('change', salvarCredenciais);
+inputUsuario.addEventListener('change', salvarComDebounce);
+inputSenha.addEventListener('change', salvarComDebounce);
 inputServerURL.addEventListener('change', () => {
   // Atualizar placeholder do campo URL
   if (inputServerURL.value) {
@@ -504,47 +667,149 @@ inputServerURL.addEventListener('change', () => {
     inputServerURL.style.borderColor = '#ced4da';
     inputServerURL.title = '';
   }
-  
-  salvarCredenciais();
 });
 
-// Salvar credenciais imediatamente ao digitar
-function salvarCredenciais() {
-  if (checkboxSalvarCredenciais && checkboxSalvarCredenciais.checked) {
-    configuracao.usuario = inputUsuario.value;
-    configuracao.senha = inputSenha.value;
-    configuracao.server_url = inputServerURL.value;
-    salvarConfiguracao();
+// Carregar configuração usando o novo sistema de armazenamento
+async function carregarConfiguracao() {
+  try {
+    console.log('Carregando configuração usando storageUtils...');
+    
+    // Carregar dados usando o novo sistema
+    const dadosExtensao = await storageUtils.carregar('dados_extensao', 'local', {
+      configuracao: {
+        usuario: '',
+        senha: '',
+        server_url: '',
+        intervalo_segundos: 30,
+        dashboards: [],
+        auto_login: false,
+        fullscreen: false
+      },
+      preferencias: {
+        tema: 'claro',
+        idioma: 'pt-BR',
+        notificacoes: true,
+        auto_salvar: true,
+        debounce_tempo: 1000
+      },
+      estado: {
+        em_rotacao: false,
+        indice_atual: 0,
+        tempo_restante: 30,
+        ultima_atualizacao: Date.now(),
+        sessao_valida: false
+      },
+      historico: {
+        logins: [],
+        dashboards_acessados: [],
+        erros: [],
+        ultima_limpeza: Date.now()
+      }
+    });
+
+    // Atualizar variáveis globais
+    configuracao = dadosExtensao.configuracao;
+    preferencias = dadosExtensao.preferencias;
+    estado = dadosExtensao.estado;
+    historico = dadosExtensao.historico;
+
+    console.log('Configuração carregada com sucesso:', {
+      usuario: configuracao.usuario ? '***' : 'não configurado',
+      server_url: configuracao.server_url,
+      dashboards_count: configuracao.dashboards.length,
+      em_rotacao: estado.em_rotacao
+    });
+
+    return true;
+  } catch (erro) {
+    console.error('Erro ao carregar configuração:', erro);
+    
+    // Inicializar com dados padrão em caso de erro
+    inicializarDadosPadrao();
+    return false;
   }
 }
 
-// Carregar configuração
-function carregarConfiguracao() {
-  chrome.storage.local.get(['configuracao'], (result) => {
-    if (result.configuracao) {
-      configuracao = result.configuracao;
-      
-      // Preencher formulário
-      inputUsuario.value = configuracao.usuario || '';
-      inputSenha.value = configuracao.senha || '';
-      inputIntervalo.value = configuracao.intervalo_segundos || 30;
-      inputServerURL.value = configuracao.server_url || '';
-      
-      // Marcar checkbox se tiver credenciais salvas
-      if (configuracao.usuario && configuracao.senha && checkboxSalvarCredenciais) {
-        checkboxSalvarCredenciais.checked = true;
-      }
-      
-      // Atualizar lista de dashboards
-      atualizarListaDashboards();
-      
-      // Atualizar exibição de dashboards atual/próximo
-      atualizarExibicaoDashboards();
-      
-      // Atualizar placeholder do campo URL
-      inputUrlDashboard.placeholder = `${configuracao.server_url}/superset/dashboard/...`;
+// Inicializar dados padrão
+function inicializarDadosPadrao() {
+  configuracao = {
+    usuario: "",
+    senha: "",
+    server_url: "",
+    intervalo_segundos: 30,
+    dashboards: [],
+    auto_login: false,
+    fullscreen: false
+  };
+  
+  dadosExtensao = {
+    configuracao: configuracao,
+    preferencias: {
+      tema: 'claro',
+      idioma: 'pt-BR',
+      notificacoes: true,
+      auto_salvar: true,
+      debounce_tempo: 1000
+    },
+    estado: {
+      em_rotacao: false,
+      indice_atual: 0,
+      tempo_restante: 30,
+      ultima_atualizacao: Date.now(),
+      sessao_valida: false
+    },
+    historico: {
+      logins: [],
+      dashboards_acessados: [],
+      erros: [],
+      ultima_limpeza: Date.now()
     }
-  });
+  };
+  
+  // Sincronizar variáveis locais
+  emRotacao = false;
+  indiceAtual = 0;
+  salvamentoAutomatico = true;
+  
+  // Salvar dados padrão
+  salvarDadosExtensao();
+}
+
+// Salvar dados da extensão usando o novo sistema
+async function salvarDadosExtensao() {
+  try {
+    console.log('Salvando dados da extensão usando storageUtils...');
+    
+    // Preparar dados para salvar
+    const dadosParaSalvar = {
+      configuracao: configuracao,
+      preferencias: preferencias,
+      estado: estado,
+      historico: historico
+    };
+
+    // Salvar usando o novo sistema
+    const sucesso = await storageUtils.salvar('dados_extensao', dadosParaSalvar, 'local');
+    
+    if (sucesso) {
+      console.log('Dados salvos com sucesso');
+      mostrarFeedbackSalvamento();
+      
+      // Adicionar ao histórico
+      await storageUtils.adicionarAoHistorico('configuracao', {
+        acao: 'salvar',
+        dashboards_count: configuracao.dashboards.length,
+        intervalo: configuracao.intervalo_segundos
+      });
+    } else {
+      console.error('Erro ao salvar dados');
+    }
+
+    return sucesso;
+  } catch (erro) {
+    console.error('Erro ao salvar dados da extensão:', erro);
+    return false;
+  }
 }
 
 // Verificar status da rotação
@@ -590,29 +855,6 @@ function verificarStatusRotacao() {
     });
   } catch (erro) {
     console.error('Erro ao verificar status da rotação:', erro);
-  }
-}
-
-// Salvar configuração
-function salvarConfiguracao(callback) {
-  try {
-    chrome.runtime.sendMessage({ 
-      acao: 'salvarConfiguracao', 
-      configuracao 
-    }, (resposta) => {
-      if (chrome.runtime.lastError) {
-        console.warn('Erro ao salvar configuração:', chrome.runtime.lastError.message);
-        if (callback) callback();
-        return;
-      }
-      
-      if (resposta && resposta.sucesso && callback) {
-        callback();
-      }
-    });
-  } catch (erro) {
-    console.error('Erro ao salvar configuração:', erro);
-    if (callback) callback();
   }
 }
 
@@ -682,6 +924,8 @@ function atualizarListaDashboards() {
       configuracao.dashboards.splice(indice, 1);
       atualizarListaDashboards();
       atualizarExibicaoDashboards();
+      // Salvar configuração automaticamente após remover
+      salvarConfiguracaoComDashboards();
     };
     
     item.appendChild(info);
@@ -710,14 +954,34 @@ function atualizarExibicaoDashboards() {
     return;
   }
   
+  // Sincronizar o índice atual com o background script
+  chrome.runtime.sendMessage({ acao: 'getIndiceAtual' }, (resposta) => {
+    if (resposta && resposta.indiceAtual !== undefined) {
+      indiceAtual = resposta.indiceAtual;
+    }
+    
+    // Garantir que o índice está dentro dos limites
+    if (indiceAtual < 0 || indiceAtual >= configuracao.dashboards.length) {
+      indiceAtual = 0;
+  }
+  
   // Dashboard atual
   const dashAtual = configuracao.dashboards[indiceAtual];
-  dashboardAtual.textContent = dashAtual ? dashAtual.nome : 'Desconhecido';
+    if (dashAtual && dashAtual.nome) {
+      dashboardAtual.textContent = dashAtual.nome;
+    } else {
+      dashboardAtual.textContent = 'Dashboard não encontrado';
+    }
   
   // Próximo dashboard
   const proximoIndice = (indiceAtual + 1) % configuracao.dashboards.length;
   const dashProximo = configuracao.dashboards[proximoIndice];
-  proximoDashboard.textContent = dashProximo ? dashProximo.nome : 'Desconhecido';
+    if (dashProximo && dashProximo.nome) {
+      proximoDashboard.textContent = dashProximo.nome;
+    } else {
+      proximoDashboard.textContent = 'Próximo não encontrado';
+    }
+  });
 }
 
 // Ao fechar o popup, envia o tempo restante para o background
@@ -733,19 +997,16 @@ window.addEventListener('beforeunload', () => {
 // Implementar funcionalidades de exportação e importação de configurações
 
 // Botão de exportar configurações
-const botaoExportar = document.getElementById('export-config');
-botaoExportar.addEventListener('click', exportarConfiguracoes);
+botaoExport.addEventListener('click', exportarConfiguracoes);
 
 // Botão de importar configurações
-const botaoImportar = document.getElementById('import-config');
-const inputArquivo = document.getElementById('import-file');
-botaoImportar.addEventListener('click', () => {
+botaoImport.addEventListener('click', () => {
   // Acionar o seletor de arquivo
-  inputArquivo.click();
+  inputImport.click();
 });
 
 // Processar o arquivo quando for selecionado
-inputArquivo.addEventListener('change', importarConfiguracoes);
+inputImport.addEventListener('change', importarConfiguracoes);
 
 // Função para exportar configurações para um arquivo JSON
 function exportarConfiguracoes() {
@@ -834,17 +1095,20 @@ function importarConfiguracoes(evento) {
 }
 
 // Botão para buscar dashboards da API
-const botaoFetchDashboards = document.getElementById('fetch-dashboards');
-
 botaoFetchDashboards.addEventListener('click', async () => {
-  // Verificar se tem credenciais salvas
-  if (!configuracao.usuario || !configuracao.senha) {
+  // Usar valores dos campos em tempo real
+  const usuario = inputUsuario.value.trim();
+  const senha = inputSenha.value.trim();
+  const serverUrl = inputServerURL.value.trim();
+  
+  // Verificar se tem credenciais preenchidas
+  if (!usuario || !senha) {
     alert('Preencha o usuário e senha para buscar dashboards da API');
     return;
   }
   
   // Validar formato da URL do servidor
-  if (!validarFormatoURL(configuracao.server_url)) {
+  if (!validarFormatoURL(serverUrl)) {
     alert('Configure uma URL válida do servidor Superset (ex: http://192.168.1.100:8080)');
     return;
   }
@@ -853,11 +1117,11 @@ botaoFetchDashboards.addEventListener('click', async () => {
     botaoFetchDashboards.disabled = true;
     botaoFetchDashboards.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Carregando...';
     
-    // Obter token de acesso
-    const token = await obterTokenAPI(configuracao.usuario, configuracao.senha);
+    // Obter token de acesso usando valores dos campos
+    const token = await obterTokenAPI(usuario, senha, serverUrl);
     
     // Listar dashboards
-    const dashboards = await listarDashboardsAPI(token);
+    const dashboards = await listarDashboardsAPI(token, serverUrl);
     
     // Exibir na interface
     exibirDashboardsAPI(dashboards);
@@ -985,9 +1249,9 @@ function filtrarDashboardsAPI(termo) {
 }
 
 // Função para obter token de acesso da API do Superset
-async function obterTokenAPI(usuario, senha) {
+async function obterTokenAPI(usuario, senha, serverUrl) {
   try {
-    const loginUrl = construirURL(configuracao.server_url, '/api/v1/security/login');
+    const loginUrl = construirURL(serverUrl, '/api/v1/security/login');
     
     const resposta = await fetch(loginUrl, {
       method: 'POST',
@@ -1014,9 +1278,9 @@ async function obterTokenAPI(usuario, senha) {
 }
 
 // Função para listar dashboards via API
-async function listarDashboardsAPI(token) {
+async function listarDashboardsAPI(token, serverUrl) {
   try {
-    const dashboardUrl = construirURL(configuracao.server_url, '/api/v1/dashboard/');
+    const dashboardUrl = construirURL(serverUrl, '/api/v1/dashboard/');
     
     const resposta = await fetch(dashboardUrl, {
       method: 'GET',
@@ -1031,7 +1295,7 @@ async function listarDashboardsAPI(token) {
       return dados.result.map(dash => ({
         id: dash.id,
         nome: dash.dashboard_title,
-        url: construirURL(configuracao.server_url, `/superset/dashboard/${dash.id}/?expand_filters=0`),
+        url: construirURL(serverUrl, `/superset/dashboard/${dash.id}/?expand_filters=0`),
         descricao: dash.description || ''
       }));
     } else {
@@ -1049,7 +1313,7 @@ inputApiSearch.addEventListener('input', (evento) => {
 });
 
 // Adicionar todos os dashboards da API
-addAllButton.addEventListener('click', async () => {
+botaoAddAllDashboards.addEventListener('click', async () => {
   // Verificar se tem credenciais salvas
   if (!configuracao.usuario || !configuracao.senha) {
     alert('Preencha o usuário e senha para adicionar todos os dashboards da API');
@@ -1063,14 +1327,14 @@ addAllButton.addEventListener('click', async () => {
   }
   
   try {
-    addAllButton.disabled = true;
-    addAllButton.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
+    botaoAddAllDashboards.disabled = true;
+    botaoAddAllDashboards.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Adicionando...';
     
     // Obter token de acesso
-    const token = await obterTokenAPI(configuracao.usuario, configuracao.senha);
+    const token = await obterTokenAPI(configuracao.usuario, configuracao.senha, configuracao.server_url);
     
     // Listar dashboards
-    const dashboards = await listarDashboardsAPI(token);
+    const dashboards = await listarDashboardsAPI(token, configuracao.server_url);
     
     // Adicionar dashboards à lista
     dashboards.forEach(dash => {
@@ -1087,10 +1351,135 @@ addAllButton.addEventListener('click', async () => {
     // Atualizar exibição de dashboards atual/próximo
     atualizarExibicaoDashboards();
     
+    // Salvar configuração automaticamente
+    await salvarConfiguracaoComDashboards();
+    
   } catch (erro) {
     alert('Erro ao adicionar dashboards: ' + erro.message);
   } finally {
-    addAllButton.disabled = false;
-    addAllButton.innerHTML = '<i class="fas fa-plus-circle"></i> Adicionar Todos os Dashboards da API';
+    botaoAddAllDashboards.disabled = false;
+    botaoAddAllDashboards.innerHTML = '<i class="fas fa-plus-circle"></i> Adicionar Todos os Dashboards da API';
   }
 }); 
+
+// Função para mostrar feedback visual de salvamento
+function mostrarFeedbackSalvamento() {
+  try {
+    // Criar ou atualizar elemento de feedback
+    let feedbackElement = document.getElementById('feedback-salvamento');
+    
+    if (!feedbackElement) {
+      feedbackElement = document.createElement('div');
+      feedbackElement.id = 'feedback-salvamento';
+      feedbackElement.style.cssText = `
+        position: fixed;
+        top: 10px;
+        right: 10px;
+        background: #28a745;
+        color: white;
+        padding: 8px 12px;
+        border-radius: 4px;
+        font-size: 12px;
+        z-index: 10000;
+        opacity: 0;
+        transition: opacity 0.3s ease;
+        pointer-events: none;
+      `;
+      document.body.appendChild(feedbackElement);
+    }
+
+    feedbackElement.textContent = 'Configuração salva!';
+    feedbackElement.style.opacity = '1';
+
+    // Ocultar após 2 segundos
+    setTimeout(() => {
+      feedbackElement.style.opacity = '0';
+    }, 2000);
+  } catch (erro) {
+    console.error('Erro ao mostrar feedback de salvamento:', erro);
+  }
+}
+
+// Função para verificar se as credenciais estão preenchidas (sem salvar)
+function verificarCredenciaisPreenchidas() {
+  const usuario = inputUsuario.value.trim() || configuracao.usuario;
+  const senha = inputSenha.value.trim() || configuracao.senha;
+  const serverUrl = inputServerURL.value.trim() || configuracao.server_url;
+  
+  return !!(usuario && senha && serverUrl);
+}
+
+// Função para obter configuração atual dos campos (sem salvar)
+function obterConfiguracaoAtual() {
+  return {
+    usuario: inputUsuario.value.trim() || configuracao.usuario,
+    senha: inputSenha.value.trim() || configuracao.senha,
+    server_url: inputServerURL.value.trim() || configuracao.server_url,
+    intervalo_segundos: parseInt(inputIntervalo.value) || configuracao.intervalo_segundos || 30,
+    dashboards: configuracao.dashboards || [],
+    auto_login: configuracao.auto_login || false,
+    fullscreen: configuracao.fullscreen || false
+  };
+}
+
+// Adicionar event listeners para salvamento automático
+function configurarSalvamentoAutomatico() {
+  let timeoutSalvamento = null;
+  
+  // Função para salvar com debounce
+  const salvarComDebounce = () => {
+    if (timeoutSalvamento) {
+      clearTimeout(timeoutSalvamento);
+    }
+    
+    timeoutSalvamento = setTimeout(async () => {
+      await salvarDadosExtensao();
+      timeoutSalvamento = null;
+    }, preferencias && preferencias.debounce_tempo ? preferencias.debounce_tempo : 1000);
+  };
+
+  // Adicionar listeners para campos de configuração
+  const camposConfiguracao = [
+    inputUsuario, inputSenha, inputServerURL, inputIntervalo
+  ];
+  
+  camposConfiguracao.forEach(campo => {
+    campo.addEventListener('input', salvarComDebounce);
+    campo.addEventListener('change', salvarComDebounce);
+  });
+
+  console.log('Salvamento automático configurado com debounce de', preferencias && preferencias.debounce_tempo ? preferencias.debounce_tempo : 1000, 'ms');
+}
+
+// Função para salvar configuração quando dashboards são adicionados
+async function salvarConfiguracaoComDashboards() {
+  try {
+    // Atualizar configuração com dados dos campos
+    configuracao.usuario = inputUsuario.value;
+    configuracao.senha = inputSenha.value;
+    configuracao.server_url = inputServerURL.value;
+    configuracao.intervalo_segundos = parseInt(inputIntervalo.value) || 30;
+    
+    // Salvar usando o novo sistema
+    const sucesso = await salvarDadosExtensao();
+    
+    if (sucesso) {
+      // Sincronizar com background script
+      chrome.runtime.sendMessage({ 
+        acao: 'salvarConfiguracao', 
+        configuracao: configuracao 
+      }, (resposta) => {
+        if (resposta && resposta.sucesso) {
+          console.log('Configuração sincronizada com background script');
+        } else {
+          console.error('Erro ao sincronizar com background script');
+        }
+      });
+    }
+    
+    return sucesso;
+  } catch (erro) {
+    console.error('Erro ao salvar configuração com dashboards:', erro);
+    return false;
+  }
+} 

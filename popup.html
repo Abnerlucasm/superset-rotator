@@ -282,23 +282,6 @@
       text-align: center;
     }
     
-    .checkbox-container {
-      display: flex;
-      align-items: center;
-      margin-bottom: 12px;
-    }
-    
-    .checkbox-container input[type="checkbox"] {
-      width: auto;
-      margin-right: 8px;
-      margin-bottom: 0;
-    }
-    
-    .checkbox-container label {
-      display: inline;
-      font-weight: normal;
-    }
-    
     .dashboard-info-box {
       margin-top: 10px;
       padding: 10px;
@@ -465,8 +448,13 @@
       margin-bottom: 8px;
     }
     
-    .form-row .form-group {
+    .form-group {
       flex: 1;
+      margin-right: 10px;
+    }
+    
+    .form-group:last-child {
+      margin-right: 0;
     }
     
     .form-group label {
@@ -573,11 +561,6 @@
         </div>
       </div>
       
-      <div class="checkbox-container">
-        <input type="checkbox" id="save-credentials">
-        <label for="save-credentials">Salvar credenciais automaticamente</label>
-      </div>
-      
       <button id="login" class="btn-login"><i class="fas fa-sign-in-alt"></i> Fazer Login</button>
       
       <div id="status-login" class="status">
@@ -660,18 +643,14 @@
       </div>
       <div class="step">
         <div class="step-number">2</div>
-        <div class="step-text">Marque a opção "Salvar credenciais" para não precisar digitar novamente</div>
-      </div>
-      <div class="step">
-        <div class="step-number">3</div>
         <div class="step-text">Adicione pelo menos um dashboard (nome e URL são obrigatórios)</div>
       </div>
       <div class="step">
-        <div class="step-number">4</div>
+        <div class="step-number">3</div>
         <div class="step-text">Configure o intervalo de rotação em segundos</div>
       </div>
       <div class="step">
-        <div class="step-number">5</div>
+        <div class="step-number">4</div>
         <div class="step-text">Clique em "Salvar Configuração"</div>
       </div>
       
@@ -717,6 +696,7 @@
     </div>
   </div>
   
+  <script src="storage-utils.js"></script>
   <script src="popup.js"></script>
 </body>
 </html> 

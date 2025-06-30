@@ -1,7 +1,7 @@
 {
   "version": "1.1",
-  "download_url": "https://github.com/seu-usuario/superset-rotator/releases/latest",
-  "changelog": "https://github.com/seu-usuario/superset-rotator/blob/main/CHANGELOG.md",
+  "download_url": "https://github.com/abnerlucasm/superset-rotator/releases/latest",
+  "changelog": "https://github.com/abnerlucasm/superset-rotator/blob/master/CHANGELOG.md",
   "release_date": "2025-06-30",
   "description": "Nova versão com melhorias na interface e funcionalidades adicionais"
 } 

@@ -1,8 +1,14 @@
-# Superset Dashboard Rotator v1.4
+# Superset Dashboard Rotator v1.5
 
 Extensão para Chrome que automatiza o login e a rotação entre dashboards do Apache Superset.
 
-## Novas Funcionalidades v1.4
+## Novas Funcionalidades v1.5
+
+- ✅ **Navegação unificada na mesma aba** - TODAS as navegações (HTTP, HTTPS e file://) acontecem na mesma aba
+- ✅ **Eliminação de abas desnecessárias** - Não cria mais abas para cada dashboard
+- ✅ **Experiência de usuário melhorada** - Interface mais limpa e organizada
+
+## Funcionalidades v1.4
 
 - ✅ **Permitir URLs de qualquer origem** - Opção para usar a extensão em qualquer site, não apenas Superset
 - ✅ **Suporte a arquivos HTML locais** - Funciona com arquivos file:// da própria máquina
@@ -120,6 +126,28 @@ A partir da versão 1.4, a extensão suporta funcionar em qualquer site (HTTP/HT
 5. **Inicie a rotação** normalmente
 
 **Arquivo de exemplo incluído**: `exemplo-arquivo-local.html`
+
+### Correção v1.5 - Navegação Unificada na Mesma Aba
+
+**Problema resolvido**: A extensão estava criando novas abas para cada dashboard, causando acúmulo desnecessário de abas.
+
+**Solução implementada**:
+- ✅ **Navegação unificada**: TODAS as URLs (HTTP, HTTPS, file://) usam a mesma aba
+- ✅ **Prioridade da aba ativa**: Sempre usa a aba ativa atual primeiro
+- ✅ **Fallback inteligente**: Se não houver aba ativa, usa a primeira aba disponível
+- ✅ **Último recurso**: Cria nova aba apenas se não houver nenhuma aba
+
+**Como funciona**:
+1. **Prioridade 1**: Usa a aba ativa atual (`chrome.tabs.query({ active: true })`)
+2. **Prioridade 2**: Se não houver aba ativa, usa a primeira aba disponível
+3. **Prioridade 3**: Cria nova aba apenas como último recurso
+4. **Aplicado a**: Dashboards, login, verificação de sessão
+
+**Benefícios**:
+- 🎯 **Interface limpa**: Sem acúmulo de abas
+- ⚡ **Performance**: Menos recursos utilizados
+- 🎨 **UX melhorada**: Navegação mais fluida
+- 🔄 **Consistência**: Comportamento uniforme para todos os tipos de URL
 
 ## Estrutura de Arquivos
 

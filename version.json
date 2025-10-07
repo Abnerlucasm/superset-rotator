@@ -1,7 +1,7 @@
 {
-  "version": "1.5",
+  "version": "1.5.2",
   "download_url": "https://github.com/abnerlucasm/superset-rotator/releases/latest",
   "changelog": "https://github.com/abnerlucasm/superset-rotator/blob/master/CHANGELOG.md",
   "release_date": "2025-10-07",
-  "description": "Implementação de feature de permitir URLs de qualquer origem e suporte a arquivos HTML locais"
+  "description": "Correção de bug na navegação na mesma aba para arquivos HTML locais"
 }

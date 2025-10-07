@@ -436,29 +436,25 @@ function carregarDashboard(indice) {
   const dashboard = dashboards[indice];
   console.log(`Carregando dashboard: ${dashboard.nome}`);
   
-  // Procurar se a aba já existe
-  chrome.tabs.query({}, (tabs) => {
-    let encontrado = false;
-    
-    for (const tab of tabs) {
-      // Verificar se a URL corresponde a um dashboard do Superset
-      if (tab.url && tab.url.includes('superset/dashboard')) {
-        // Atualizar a aba existente para o novo dashboard
-        chrome.tabs.update(tab.id, { url: dashboard.url, active: true });
-        encontrado = true;
-        break;
-      } else if (tab.url && tab.url.includes(configuracao.server_url)) {
-        // Se não encontrou dashboard, mas tem qualquer página do Superset aberta,
-        // atualizar essa página para o dashboard
-        chrome.tabs.update(tab.id, { url: dashboard.url, active: true });
-        encontrado = true;
-        break;
-      }
-    }
-    
-    // Se não encontrar uma aba, criar uma nova
-    if (!encontrado) {
-      chrome.tabs.create({ url: dashboard.url });
+  // Sempre usar a aba ativa atual para qualquer tipo de URL
+  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+    if (tabs && tabs.length > 0) {
+      // Usar a aba ativa atual
+      chrome.tabs.update(tabs[0].id, { url: dashboard.url, active: true });
+      console.log(`Navegando para ${dashboard.url} na aba ativa atual`);
+    } else {
+      // Fallback: procurar qualquer aba disponível
+      chrome.tabs.query({}, (allTabs) => {
+        if (allTabs && allTabs.length > 0) {
+          // Usar a primeira aba disponível
+          chrome.tabs.update(allTabs[0].id, { url: dashboard.url, active: true });
+          console.log(`Navegando para ${dashboard.url} na primeira aba disponível`);
+        } else {
+          // Último recurso: criar uma nova aba
+          chrome.tabs.create({ url: dashboard.url });
+          console.log(`Criando nova aba para ${dashboard.url}`);
+        }
+      });
     }
   });
   
@@ -504,17 +500,28 @@ async function fazerLogin(configTemp = null) {
       return { sucesso: true, mensagem: "Página de login ativada" };
     }
     
-    // Se não há sessão válida, abrir página de login
-    console.log('Nenhuma sessão válida encontrada, abrindo página de login');
+    // Se não há sessão válida, abrir página de login na aba ativa atual
+    console.log('Nenhuma sessão válida encontrada, abrindo página de login na aba ativa');
     const loginUrl = construirURL(configAtual.server_url, '/login/');
     
-    // Abrir a página de login
-    chrome.tabs.create({ url: loginUrl }, (tab) => {
-      // Aguardar um pouco para a página carregar e o content script ser injetado
-      setTimeout(() => {
-        // Enviar mensagem para o content script executar o login
-        enviarMensagemSegura(tab.id, { acao: 'fazerLogin' });
-      }, 2000);
+    // Usar a aba ativa atual para o login
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { url: loginUrl, active: true }, (tab) => {
+          // Aguardar um pouco para a página carregar e o content script ser injetado
+          setTimeout(() => {
+            // Enviar mensagem para o content script executar o login
+            enviarMensagemSegura(tab.id, { acao: 'fazerLogin' });
+          }, 2000);
+        });
+      } else {
+        // Fallback: criar nova aba apenas se não houver nenhuma aba
+        chrome.tabs.create({ url: loginUrl }, (tab) => {
+          setTimeout(() => {
+            enviarMensagemSegura(tab.id, { acao: 'fazerLogin' });
+          }, 2000);
+        });
+      }
     });
   } catch (erro) {
     console.error('Erro ao abrir página de login:', erro);
@@ -541,15 +548,21 @@ async function verificarLogin() {
       return { sucesso: true, mensagem: "Sessão válida encontrada" };
     }
     
-    // Se não há sessão válida, tentar abrir o primeiro dashboard
-  const primeiroUrl = dashboards[0].url;
-    console.log('Nenhuma sessão válida encontrada, tentando abrir dashboard:', primeiroUrl);
-  
-  // Tentar abrir o primeiro dashboard
-  chrome.tabs.create({ url: primeiroUrl }, (tab) => {
-    // Verificaremos no script de conteúdo se fomos redirecionados para a tela de login
-    // Se for redirecionado, o script content-login.js será acionado
-  });
+    // Se não há sessão válida, tentar abrir o primeiro dashboard na aba ativa atual
+    const primeiroUrl = dashboards[0].url;
+    console.log('Nenhuma sessão válida encontrada, tentando abrir dashboard na aba ativa:', primeiroUrl);
+    
+    // Usar a aba ativa atual para abrir o dashboard
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { url: primeiroUrl, active: true });
+        // Verificaremos no script de conteúdo se fomos redirecionados para a tela de login
+        // Se for redirecionado, o script content-login.js será acionado
+      } else {
+        // Fallback: criar nova aba apenas se não houver nenhuma aba
+        chrome.tabs.create({ url: primeiroUrl });
+      }
+    });
   
     return { sucesso: true, mensagem: "Tentando acessar dashboard" };
   } catch (erro) {
@@ -788,13 +801,24 @@ function fazerLoginComConfig(configTemp) {
     // Construir URL de login
     const loginUrl = construirURL(configTemp.server_url, '/login/');
     
-    // Abrir página de login
-    chrome.tabs.create({ url: loginUrl }, (tab) => {
-      // Aguardar um pouco para a página carregar e o content script ser injetado
-      setTimeout(() => {
-        // Enviar mensagem para o content script executar o login
-        enviarMensagemSegura(tab.id, { acao: 'fazerLogin' });
-      }, 2000);
+    // Abrir página de login na aba ativa atual
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (tabs && tabs.length > 0) {
+        chrome.tabs.update(tabs[0].id, { url: loginUrl, active: true }, (tab) => {
+          // Aguardar um pouco para a página carregar e o content script ser injetado
+          setTimeout(() => {
+            // Enviar mensagem para o content script executar o login
+            enviarMensagemSegura(tab.id, { acao: 'fazerLogin' });
+          }, 2000);
+        });
+      } else {
+        // Fallback: criar nova aba apenas se não houver nenhuma aba
+        chrome.tabs.create({ url: loginUrl }, (tab) => {
+          setTimeout(() => {
+            enviarMensagemSegura(tab.id, { acao: 'fazerLogin' });
+          }, 2000);
+        });
+      }
     });
     
     return { sucesso: true, mensagem: "Tentativa de login iniciada" };

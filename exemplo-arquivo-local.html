@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Exemplo de Arquivo HTML Local</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background-color: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #336699;
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .info-box {
+            background-color: #e7f3ff;
+            border: 1px solid #b3d9ff;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+        .success {
+            background-color: #d4edda;
+            border-color: #c3e6cb;
+            color: #155724;
+        }
+        .warning {
+            background-color: #fff3cd;
+            border-color: #ffeaa7;
+            color: #856404;
+        }
+        .dashboard-simulator {
+            background-color: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 5px;
+            padding: 20px;
+            text-align: center;
+            margin: 20px 0;
+        }
+        .chart-placeholder {
+            background-color: #e9ecef;
+            height: 200px;
+            border-radius: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 10px 0;
+            color: #6c757d;
+        }
+        .status {
+            padding: 10px;
+            border-radius: 5px;
+            margin: 10px 0;
+            font-weight: bold;
+        }
+        .status.active {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        .status.inactive {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        .test-info {
+            background-color: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 5px;
+            padding: 15px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📊 Exemplo de Dashboard Local</h1>
+        
+        <div class="info-box success">
+            <h3>✅ Arquivo HTML Local Carregado</h3>
+            <p>Este é um exemplo de arquivo HTML local que pode ser usado com a extensão Superset Dashboard Rotator.</p>
+            <p><strong>URL:</strong> <code id="current-url"></code></p>
+        </div>
+
+        <div class="info-box warning">
+            <h3>⚠️ Instruções para Teste</h3>
+            <ol>
+                <li>Abra a extensão Superset Dashboard Rotator</li>
+                <li>Marque o checkbox "Permitir URLs de qualquer origem"</li>
+                <li>Adicione este arquivo como um dashboard:
+                    <ul>
+                        <li><strong>Nome:</strong> Exemplo Local</li>
+                        <li><strong>URL:</strong> <code id="file-url"></code></li>
+                        <li><strong>Descrição:</strong> Arquivo HTML local de exemplo</li>
+                    </ul>
+                </li>
+                <li>Salve a configuração e inicie a rotação</li>
+                <li><strong>IMPORTANTE:</strong> TODAS as navegações (HTTP, HTTPS e file://) acontecem na mesma aba!</li>
+            </ol>
+        </div>
+
+        <div class="test-info">
+            <h3>🧪 Teste de Navegação na Mesma Aba</h3>
+            <p>Com a correção v1.5 implementada, quando você alternar entre dashboards:</p>
+            <ul>
+                <li>✅ TODAS as navegações (HTTP, HTTPS, file://) usam a mesma aba</li>
+                <li>✅ Não são criadas novas abas para cada dashboard</li>
+                <li>✅ A navegação é suave entre qualquer tipo de URL</li>
+                <li>✅ O contador de tempo funciona normalmente</li>
+                <li>✅ Interface mais limpa e organizada</li>
+            </ul>
+        </div>
+
+        <div class="dashboard-simulator">
+            <h3>🎯 Simulador de Dashboard</h3>
+            <p>Este arquivo simula um dashboard com gráficos e dados.</p>
+            
+            <div class="chart-placeholder">
+                📈 Gráfico de Vendas - Q1 2024
+            </div>
+            
+            <div class="chart-placeholder">
+                📊 Gráfico de Performance - Últimos 30 dias
+            </div>
+            
+            <div class="chart-placeholder">
+                🎯 KPIs Principais - Dashboard Executivo
+            </div>
+        </div>
+
+        <div class="status" id="extension-status">
+            <span id="status-text">Aguardando detecção da extensão...</span>
+        </div>
+
+        <div class="info-box">
+            <h3>🔧 Informações Técnicas</h3>
+            <p><strong>Protocolo:</strong> <span id="protocol"></span></p>
+            <p><strong>Host:</strong> <span id="host"></span></p>
+            <p><strong>Pathname:</strong> <span id="pathname"></span></p>
+            <p><strong>User Agent:</strong> <span id="user-agent"></span></p>
+            <p><strong>Timestamp:</strong> <span id="timestamp"></span></p>
+        </div>
+    </div>
+
+    <script>
+        // Exibir informações da URL atual
+        document.getElementById('current-url').textContent = window.location.href;
+        document.getElementById('file-url').textContent = window.location.href;
+        document.getElementById('protocol').textContent = window.location.protocol;
+        document.getElementById('host').textContent = window.location.host || 'N/A (arquivo local)';
+        document.getElementById('pathname').textContent = window.location.pathname;
+        document.getElementById('user-agent').textContent = navigator.userAgent;
+        document.getElementById('timestamp').textContent = new Date().toLocaleString();
+
+        // Simular detecção da extensão
+        function verificarExtensao() {
+            const statusElement = document.getElementById('extension-status');
+            const statusText = document.getElementById('status-text');
+            
+            // Verificar se a extensão está ativa (classe adicionada pelo content script)
+            if (document.body.classList.contains('dashboard-ativo')) {
+                statusElement.className = 'status active';
+                statusText.textContent = '✅ Extensão detectada e ativa!';
+            } else {
+                statusElement.className = 'status inactive';
+                statusText.textContent = '❌ Extensão não detectada. Verifique se está ativada.';
+            }
+        }
+
+        // Verificar a cada segundo
+        setInterval(verificarExtensao, 1000);
+        
+        // Verificar imediatamente
+        verificarExtensao();
+
+        // Log para debug
+        console.log('Arquivo HTML local carregado:', window.location.href);
+        console.log('Protocolo:', window.location.protocol);
+        console.log('Aguardando detecção da extensão...');
+        console.log('Timestamp:', new Date().toISOString());
+    </script>
+</body>
+</html>

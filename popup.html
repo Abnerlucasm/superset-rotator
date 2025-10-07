@@ -580,7 +580,7 @@
           Permitir URLs de qualquer origem (não apenas Superset)
         </label>
         <div style="font-size: 12px; color: #6c757d; margin-top: 5px; margin-left: 24px;">
-          <i class="fas fa-info-circle"></i> Quando marcado, a extensão funcionará em qualquer site, não apenas em dashboards do Superset.
+          <i class="fas fa-info-circle"></i> Quando marcado, a extensão funcionará em qualquer site (HTTP/HTTPS) ou arquivo HTML local (file://), não apenas em dashboards do Superset.
         </div>
       </div>
       
@@ -616,7 +616,7 @@
       <input type="text" id="dashboard-name" placeholder="Ex: Vendas Mensais">
       
       <label for="dashboard-url" class="required">URL:</label>
-      <input type="text" id="dashboard-url" placeholder="http://[IP_SERVIDOR]/superset/dashboard/...">
+      <input type="text" id="dashboard-url" placeholder="http://[IP_SERVIDOR]/superset/dashboard/... ou file:///caminho/arquivo.html">
       
       <label for="dashboard-desc">Descrição:</label>
       <input type="text" id="dashboard-desc" placeholder="Opcional: descrição do dashboard">

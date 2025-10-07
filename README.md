@@ -5,6 +5,7 @@ Extensão para Chrome que automatiza o login e a rotação entre dashboards do A
 ## Novas Funcionalidades v1.4
 
 - ✅ **Permitir URLs de qualquer origem** - Opção para usar a extensão em qualquer site, não apenas Superset
+- ✅ **Suporte a arquivos HTML locais** - Funciona com arquivos file:// da própria máquina
 - ✅ **Configuração flexível** - Salva a preferência no JSON de configuração
 - ✅ **Validação inteligente** - Adapta a validação de URL baseada na configuração do usuário
 
@@ -23,7 +24,7 @@ Extensão para Chrome que automatiza o login e a rotação entre dashboards do A
 - Busca de dashboards via API
 - Popup flutuante com controles
 - Exportar/Importar configurações
-- **Modo flexível**: Funciona em qualquer site quando ativado
+- **Modo flexível**: Funciona em qualquer site (HTTP/HTTPS) ou arquivo HTML local (file://) quando ativado
 
 ## Atualizações Automáticas
 
@@ -53,7 +54,7 @@ A extensão verifica automaticamente se há novas versões disponíveis via GitH
 - **Adição Manual**: Digite nome, URL e descrição do dashboard
 - **Busca Automática**: Use o botão "Buscar Dashboards da API" para listar dashboards disponíveis
 - **Validação**: As URLs devem corresponder ao IP do servidor configurado
-- **Modo Flexível**: Marque "Permitir URLs de qualquer origem" para usar URLs de qualquer site
+- **Modo Flexível**: Marque "Permitir URLs de qualquer origem" para usar URLs de qualquer site ou arquivos HTML locais
 
 ### 3. Configuração da Rotação
 
@@ -62,7 +63,7 @@ A extensão verifica automaticamente se há novas versões disponíveis via GitH
 
 ## Modo Flexível - URLs de Qualquer Origem
 
-A partir da versão 1.4, a extensão suporta funcionar em qualquer site, não apenas no Superset.
+A partir da versão 1.4, a extensão suporta funcionar em qualquer site (HTTP/HTTPS) ou arquivo HTML local (file://), não apenas no Superset.
 
 ### Como Ativar
 
@@ -73,7 +74,7 @@ A partir da versão 1.4, a extensão suporta funcionar em qualquer site, não ap
 ### Como Funciona
 
 - **Checkbox desmarcado (padrão)**: Funciona apenas em URLs do Superset
-- **Checkbox marcado**: Funciona em qualquer site com URLs válidas (http/https)
+- **Checkbox marcado**: Funciona em qualquer site (HTTP/HTTPS) ou arquivo HTML local (file://)
 
 ### Exemplo de Configuração JSON
 
@@ -88,6 +89,11 @@ A partir da versão 1.4, a extensão suporta funcionar em qualquer site, não ap
       "nome": "Google",
       "url": "https://google.com",
       "descricao": "Site do Google"
+    },
+    {
+      "nome": "Dashboard Local",
+      "url": "file:///C:/caminho/para/dashboard.html",
+      "descricao": "Arquivo HTML local"
     }
   ],
   "permitirQualquerUrl": true
@@ -96,10 +102,24 @@ A partir da versão 1.4, a extensão suporta funcionar em qualquer site, não ap
 
 ### Vantagens
 
-- ✅ Rotação entre sites diferentes
+- ✅ Rotação entre sites diferentes (HTTP/HTTPS)
+- ✅ Suporte a arquivos HTML locais (file://)
 - ✅ Monitoramento de múltiplas aplicações
 - ✅ Flexibilidade total de URLs
 - ✅ Configuração salva automaticamente
+
+### Exemplo de Uso com Arquivos Locais
+
+1. **Crie um arquivo HTML local** (ex: `dashboard.html`)
+2. **Abra o arquivo no navegador** para obter a URL file://
+3. **Configure na extensão**:
+   - Nome: "Meu Dashboard Local"
+   - URL: `file:///C:/caminho/para/dashboard.html`
+   - Descrição: "Dashboard HTML local"
+4. **Ative o modo flexível** marcando o checkbox
+5. **Inicie a rotação** normalmente
+
+**Arquivo de exemplo incluído**: `exemplo-arquivo-local.html`
 
 ## Estrutura de Arquivos
 
@@ -109,6 +129,7 @@ A partir da versão 1.4, a extensão suporta funcionar em qualquer site, não ap
 - `background.js`: Script de fundo para rotação
 - `content-login.js`: Script para login automático
 - `content-dashboard.js`: Script para dashboards
+- `exemplo-arquivo-local.html`: Arquivo HTML de exemplo para testar funcionalidade local
 
 ## Compatibilidade
 

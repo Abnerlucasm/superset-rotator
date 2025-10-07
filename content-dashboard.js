@@ -22,7 +22,12 @@ if (window.location.href.includes('/login/')) {
     
     if (permitirQualquerUrl || eDashboardEspecifico) {
       if (permitirQualquerUrl) {
-        console.log("Modo qualquer URL ativado - funcionando em:", window.location.href);
+        const protocolo = window.location.protocol;
+        if (protocolo === 'file:') {
+          console.log("Modo qualquer URL ativado - funcionando em arquivo local:", window.location.href);
+        } else {
+          console.log("Modo qualquer URL ativado - funcionando em:", window.location.href);
+        }
       } else {
         console.log("Dashboard específico carregado:", window.location.href);
       }
@@ -32,7 +37,16 @@ if (window.location.href.includes('/login/')) {
   
   // Função para verificar se o dashboard carregou completamente
   function verificarCarregamentoDashboard() {
-    // Elementos que indicam que o dashboard está carregado
+    // Para arquivos locais, considerar carregado quando o DOM estiver pronto
+    if (window.location.protocol === 'file:') {
+      if (document.readyState === 'complete' && document.body) {
+        console.log("Arquivo HTML local carregado:", window.location.href);
+        return true;
+      }
+      return false;
+    }
+    
+    // Para dashboards do Superset, verificar elementos específicos
     const dashboardContainer = document.querySelector('.dashboard');
     const graficos = document.querySelectorAll('.chart-container');
     

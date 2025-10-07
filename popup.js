@@ -555,7 +555,7 @@ botaoAddDashboard.addEventListener('click', () => {
   
   // Validar formato da URL
   if (!validarFormatoURL(url)) {
-    alert('Configure uma URL válida (ex: http://192.168.1.100:8080)');
+    alert('Configure uma URL válida (ex: http://192.168.1.100:8080 ou file:///caminho/para/arquivo.html)');
     return;
   }
   
@@ -648,7 +648,7 @@ function validarFormatoURL(url) {
   
   try {
     const urlObj = new URL(url);
-    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:';
+    return urlObj.protocol === 'http:' || urlObj.protocol === 'https:' || urlObj.protocol === 'file:';
   } catch (erro) {
     return false;
   }
@@ -669,13 +669,13 @@ inputServerURL.addEventListener('change', () => {
   if (inputServerURL.value) {
     inputUrlDashboard.placeholder = `${inputServerURL.value}/superset/dashboard/...`;
   } else {
-    inputUrlDashboard.placeholder = 'http://[URL_SERVIDOR]/superset/dashboard/...';
+    inputUrlDashboard.placeholder = 'http://[URL_SERVIDOR]/superset/dashboard/... ou file:///caminho/arquivo.html';
   }
   
   // Validar formato
   if (inputServerURL.value && !validarFormatoURL(inputServerURL.value)) {
     inputServerURL.style.borderColor = '#dc3545';
-    inputServerURL.title = 'Formato inválido. Use http://[IP_SERVIDOR]/superset/dashboard/...';
+    inputServerURL.title = 'Formato inválido. Use http://[IP_SERVIDOR] ou file:///caminho/arquivo.html';
   } else {
     inputServerURL.style.borderColor = '#ced4da';
     inputServerURL.title = '';

@@ -1,6 +1,6 @@
 {
   "name": "Superset Dashboard Rotator",
-  "version": "1.3",
+  "version": "1.4",
   "description": "Automatiza login e alternância entre dashboards do Superset",
   "manifest_version": 3,
   "permissions": [
@@ -48,6 +48,14 @@
         "https://*/*/superset/welcome/"
       ],
       "js": ["content-login.js"]
+    },
+    {
+      "matches": [
+        "http://*/*",
+        "https://*/*"
+      ],
+      "js": ["content-dashboard.js"],
+      "run_at": "document_end"
     }
   ]
 } 

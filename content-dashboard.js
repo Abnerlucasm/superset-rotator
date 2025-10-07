@@ -14,11 +14,21 @@ if (window.location.href.includes('/login/')) {
   
   // Notificar o background script que o login é necessário
   chrome.runtime.sendMessage({ acao: 'loginNecessario' });
-} else if (verificarSeEDashboardEspecifico()) {
-  console.log("Dashboard específico carregado:", window.location.href);
-  
-  // Adicionar classe ao corpo para facilitar identificação visual do dashboard atual
-  document.body.classList.add('dashboard-ativo');
+} else {
+  // Verificar se devemos permitir qualquer URL ou apenas URLs do Superset
+  chrome.storage.local.get(['configuracao'], (result) => {
+    const permitirQualquerUrl = result.configuracao && result.configuracao.permitirQualquerUrl;
+    const eDashboardEspecifico = verificarSeEDashboardEspecifico();
+    
+    if (permitirQualquerUrl || eDashboardEspecifico) {
+      if (permitirQualquerUrl) {
+        console.log("Modo qualquer URL ativado - funcionando em:", window.location.href);
+      } else {
+        console.log("Dashboard específico carregado:", window.location.href);
+      }
+      
+      // Adicionar classe ao corpo para facilitar identificação visual do dashboard atual
+      document.body.classList.add('dashboard-ativo');
   
   // Função para verificar se o dashboard carregou completamente
   function verificarCarregamentoDashboard() {
@@ -102,8 +112,10 @@ if (window.location.href.includes('/login/')) {
       });
     }
   }, 1000);
-} else {
-  console.log("Não é uma página de dashboard específica, não exibindo popup");
+    } else {
+      console.log("Não é uma página de dashboard específica e modo qualquer URL não está ativado, não exibindo popup");
+    }
+  });
 }
 
 // Script para adicionar funcionalidades à página de dashboard do Superset

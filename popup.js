@@ -6,7 +6,8 @@ let configuracao = {
   intervalo_segundos: 30,
   dashboards: [],
   auto_login: false,
-  fullscreen: false
+  fullscreen: false,
+  permitirQualquerUrl: false
 };
 
 // Dados adicionais para salvar no Extension Storage
@@ -75,6 +76,7 @@ const inputApiSearch = document.getElementById('api-search');
 const addAllContainer = document.getElementById('add-all-container');
 const botaoAddAllDashboards = document.getElementById('add-all-dashboards');
 const extensionVersion = document.getElementById('extension-version');
+const checkboxPermitirQualquerUrl = document.getElementById('allow-any-url');
 
 // Variáveis para dashboards da API
 let dashboardsAPI = [];
@@ -216,6 +218,7 @@ function preencherCamposInterface() {
   inputSenha.value = configuracao.senha || '';
   inputIntervalo.value = configuracao.intervalo_segundos || 30;
   inputServerURL.value = configuracao.server_url || '';
+  checkboxPermitirQualquerUrl.checked = configuracao.permitirQualquerUrl || false;
   
   // Aplicar preferências de tema se configuradas
   if (dadosExtensao.preferencias.tema === 'dark') {
@@ -551,14 +554,17 @@ botaoAddDashboard.addEventListener('click', () => {
   }
   
   // Validar formato da URL
-  if (!validarFormatoURL(configuracao.server_url)) {
-    alert('Configure uma URL válida do servidor Superset (ex: http://192.168.1.100:8080)');
+  if (!validarFormatoURL(url)) {
+    alert('Configure uma URL válida (ex: http://192.168.1.100:8080)');
     return;
   }
   
-  if (!url.includes(configuracao.server_url)) {
-    alert(`A URL deve ser do Superset em ${configuracao.server_url}`);
-    return;
+  // Se não estiver no modo "permitir qualquer URL", validar se é do Superset
+  if (!configuracao.permitirQualquerUrl && configuracao.server_url) {
+    if (!url.includes(configuracao.server_url)) {
+      alert(`A URL deve ser do Superset em ${configuracao.server_url} ou ative a opção "Permitir URLs de qualquer origem"`);
+      return;
+    }
   }
   
   // Adicionar à lista
@@ -651,6 +657,13 @@ function validarFormatoURL(url) {
 // Auto-salvar credenciais quando digitar
 inputUsuario.addEventListener('change', salvarComDebounce);
 inputSenha.addEventListener('change', salvarComDebounce);
+
+// Auto-salvar quando checkbox de permitir qualquer URL for alterado
+checkboxPermitirQualquerUrl.addEventListener('change', () => {
+  configuracao.permitirQualquerUrl = checkboxPermitirQualquerUrl.checked;
+  salvarComDebounce();
+  console.log('Configuração de permitir qualquer URL alterada para:', configuracao.permitirQualquerUrl);
+});
 inputServerURL.addEventListener('change', () => {
   // Atualizar placeholder do campo URL
   if (inputServerURL.value) {
@@ -683,7 +696,8 @@ async function carregarConfiguracao() {
         intervalo_segundos: 30,
         dashboards: [],
         auto_login: false,
-        fullscreen: false
+        fullscreen: false,
+        permitirQualquerUrl: false
       },
       preferencias: {
         tema: 'claro',
@@ -739,7 +753,8 @@ function inicializarDadosPadrao() {
     intervalo_segundos: 30,
     dashboards: [],
     auto_login: false,
-    fullscreen: false
+    fullscreen: false,
+    permitirQualquerUrl: false
   };
   
   dadosExtensao = {
@@ -1073,6 +1088,7 @@ function importarConfiguracoes(evento) {
       inputSenha.value = configuracao.senha || '';
       inputIntervalo.value = configuracao.intervalo_segundos || 30;
       inputServerURL.value = configuracao.server_url || '';
+      checkboxPermitirQualquerUrl.checked = configuracao.permitirQualquerUrl || false;
       
       // Atualizar a lista de dashboards
       atualizarListaDashboards();
@@ -1418,7 +1434,8 @@ function obterConfiguracaoAtual() {
     intervalo_segundos: parseInt(inputIntervalo.value) || configuracao.intervalo_segundos || 30,
     dashboards: configuracao.dashboards || [],
     auto_login: configuracao.auto_login || false,
-    fullscreen: configuracao.fullscreen || false
+    fullscreen: configuracao.fullscreen || false,
+    permitirQualquerUrl: checkboxPermitirQualquerUrl.checked || configuracao.permitirQualquerUrl || false
   };
 }
 
@@ -1440,7 +1457,7 @@ function configurarSalvamentoAutomatico() {
 
   // Adicionar listeners para campos de configuração
   const camposConfiguracao = [
-    inputUsuario, inputSenha, inputServerURL, inputIntervalo
+    inputUsuario, inputSenha, inputServerURL, inputIntervalo, checkboxPermitirQualquerUrl
   ];
   
   camposConfiguracao.forEach(campo => {
@@ -1459,6 +1476,7 @@ async function salvarConfiguracaoComDashboards() {
     configuracao.senha = inputSenha.value;
     configuracao.server_url = inputServerURL.value;
     configuracao.intervalo_segundos = parseInt(inputIntervalo.value) || 30;
+    configuracao.permitirQualquerUrl = checkboxPermitirQualquerUrl.checked;
     
     // Salvar usando o novo sistema
     const sucesso = await salvarDadosExtensao();

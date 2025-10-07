@@ -1,7 +1,7 @@
 {
-  "version": "1.3",
+  "version": "1.4",
   "download_url": "https://github.com/abnerlucasm/superset-rotator/releases/latest",
   "changelog": "https://github.com/abnerlucasm/superset-rotator/blob/master/CHANGELOG.md",
-  "release_date": "2025-06-30",
-  "description": "Nova versão com melhorias e correções de bugs"
+  "release_date": "2025-10-07",
+  "description": "Implementação de feature de permitir URLs de qualquer origem"
 }
